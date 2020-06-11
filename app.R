@@ -170,7 +170,8 @@ ui <- fluidPage(
     column( 10,
       plotOutput(
         outputId = "judet_plot",
-        width = "100%"
+        width = "100%",
+        height = "300px"
       )
     )
   ),
