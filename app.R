@@ -75,7 +75,8 @@ get_data <- function() {
       noi = as.numeric(noi),
       total_p = total * 1000000 / populatie,
       noi_p = noi * 1000000 / populatie,
-      noi_na = ifelse(noi < 0, NA, noi_p)
+      noi_na = ifelse(noi < 0, NA, noi_p),
+      noi = ifelse(noi < 0, NA, noi)
     ) %>%
     mutate(
       media10 = rollapply(
@@ -87,6 +88,20 @@ get_data <- function() {
       ),
       media14 = rollapply(
         data = noi_na,
+        width = 14,
+        FUN = mean_all,
+        align = "right",
+        fill = NA
+      ),
+      media10_regular = rollapply(
+        data = noi,
+        width = 14,
+        FUN = mean_without_4,
+        align = "right",
+        fill = NA
+      ),
+      media14_regular = rollapply(
+        data = noi,
         width = 14,
         FUN = mean_all,
         align = "right",
@@ -114,27 +129,51 @@ get_data <- function() {
 
 ui <- fluidPage(
   titlePanel("Media numărului de cazuri noi pe județe"),
-  radioButtons(
-    inputId = "mean_type",
-    label = NULL,
-    choiceNames = c(
-      "Media numărului de cazuri noi/milion de locuitori din ultimele 14 zile",
-      "Media numărului de cazuri noi/milion de locuitori din cele mai bune 10 din ultimele 14 zile (ascunde focare unice, ținute sub control)"),
-    choiceValues = c(14, 10),
-    width = "100%"
+  fluidRow(
+    radioButtons(
+      inputId = "mean_type",
+      label = NULL,
+      choiceNames = c(
+        "Media numărului de cazuri noi/milion de locuitori din ultimele 14 zile",
+        "Media numărului de cazuri noi/milion de locuitori din cele mai bune 10 din ultimele 14 zile (ascunde focare unice, ținute sub control)"),
+      choiceValues = c(14, 10),
+      width = "100%"
     ),
-  plotOutput(
-    outputId = "plot",
-    width = "100%"
+    plotOutput(
+      outputId = "plot",
+      width = "100%"
+    ),
+    sliderInput(
+      inputId = "date", 
+      label = "Data", 
+      min = ymd("2020-04-17"), 
+      max = ymd(Sys.Date() - 1), 
+      value = ymd(Sys.Date() - 1),
+      width = '100%'
+    )
   ),
-  sliderInput(
-    inputId = "date", 
-    label = "Data", 
-    min = ymd("2020-04-17"), 
-    max = ymd(Sys.Date() - 1), 
-    value = ymd(Sys.Date() - 1),
-    width = '100%'
+  fluidRow(
+    column( 2,
+      selectInput(
+        "judet", "Județ",
+        c(
+          "Alba", "Arad", "Argeș", "Bacău", "Bihor", "Bistrița-Năsăud", "Botoșani" ,
+          "Brăila", "Brașov", "București", "Buzău", "Călărași", "Caraș-Severin", "Cluj" ,
+          "Constanța", "Covasna", "Dâmbovița", "Dolj", "Galați", "Giurgiu", "Gorj" ,
+          "Harghita", "Hunedoara", "Iași", "Ialomița",    "Ilfov", "Maramureș", "Mehedinți" ,
+          "Mureș", "Neamț", "Olt", "Prahova", "Sălaj", "Satu Mare", "Sibiu" ,
+          "Suceava", "Teleorman", "Timiș", "Tulcea", "Vâlcea", "Vaslui", "Vrancea" 
+        ),
+        selected = "Suceava"
+      )
     ),
+    column( 10,
+      plotOutput(
+        outputId = "judet_plot",
+        width = "100%"
+      )
+    )
+  ),
   span(textOutput("blame"), style = "color:grey; font-size: 75%")
 )
 
@@ -167,6 +206,34 @@ server <- function(input, output, session) {
       theme_void() +
       theme(legend.title = element_blank())
 
+    p
+  })
+  
+  output$judet_plot <- renderPlot({
+    cases <- dataset()
+    judet <- cases %>% 
+      subset(judet == input$judet) %>%
+      select(
+        Data = data, 
+        `Cazuri noi` = noi, 
+        `Media celor mai bune 10 din ultimele 14 zile` = media10_regular, 
+        `Media ultimelor 14 zile` = media14_regular
+        ) %>%
+      pivot_longer(2:4, names_to = "Indicator", values_to = "Valoare") %>%
+      mutate(
+        Indicator = factor(
+          Indicator, 
+          levels = c("Cazuri noi", "Media ultimelor 14 zile", "Media celor mai bune 10 din ultimele 14 zile")
+          )
+        )
+    max_value <- max(judet$Valoare, na.rm = TRUE)
+    print(max_value)
+    y_scale_unit = 10 ^ (floor(log(max_value, 10)))
+    print(y_scale_unit)
+    p <- ggplot(data = judet, aes(x = Data, y = Valoare, color = Indicator)) +
+      geom_line() +
+      scale_y_continuous(breaks = seq(0, max_value, by = y_scale_unit)) +
+      scale_color_manual(values = c("#AAAAAA", "#E69F00", "#56B4E9"))
     p
   })
   
