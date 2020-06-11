@@ -227,9 +227,7 @@ server <- function(input, output, session) {
           )
         )
     max_value <- max(judet$Valoare, na.rm = TRUE)
-    print(max_value)
     y_scale_unit = 10 ^ (floor(log(max_value, 10)))
-    print(y_scale_unit)
     p <- ggplot(data = judet, aes(x = Data, y = Valoare, color = Indicator)) +
       geom_line() +
       scale_y_continuous(breaks = seq(0, max_value, by = y_scale_unit)) +
