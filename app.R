@@ -15,10 +15,11 @@ library(lubridate)
 library(tidyr)
 library(reshape2)
 
-library(zoo)
+#library(zoo)
 library(jsonlite)
 library(dplyr)
 library(shiny)
+library(memoise)
 
 # geographical
 library(sf)
@@ -123,6 +124,7 @@ get_data <- function() {
   return(new_cases_geometry)
 }
 
+cached_get_data <- memoise(get_data, ~timeout(7200))
 
 
 
@@ -181,34 +183,35 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  dataset <- reactive({get_data()})
-  cases <- get_data()
+  dataset <- reactive({cached_get_data()})
   
-  output$plot <- renderPlot({
-    cases <- dataset()
-    test <- subset(cases, data == input$date) %>%
-      mutate(
-        fm = input$mean_type == 14,
-        media = ifelse(fm, media14, media10),
-        label = ifelse(fm, label14, label10)
-      ) %>%
-      as.data.frame(stringsAsFactors = FALSE)
-    p <- ggplot(data = test) +
-      geom_sf(aes(fill = log(media + 1), geometry = geometry)) +
-      ggrepel::geom_label_repel(
-        aes(label = label, geometry = geometry), stat = "sf_coordinates"
-      ) +
-      scale_fill_gradientn(
-        limits = c(log(1), log(126)),
-        colors = c("#006837", "#a6d96a","#fee08b", "#f46d43", "#d73027", "#c51b7d", "#762a83", "#40004b"),
-        breaks = c(log(1), log(2), log(3), log(6), log(11), log(26), log(51), log(101)),
-        labels = c(0, 1, 2, 5, 10, 25, 50, 100)
-      ) +
-      theme_void() +
-      theme(legend.title = element_blank())
-
-    p
-  })
+  output$plot <- renderCachedPlot(
+    {
+      cases <- dataset()
+      test <- subset(cases, data == input$date) %>%
+        mutate(
+          fm = input$mean_type == 14,
+          media = ifelse(fm, media14, media10),
+          label = ifelse(fm, label14, label10)
+        )
+      p <- ggplot(data = test) +
+        geom_sf(aes(fill = log(media + 1), geometry = geometry)) +
+        ggrepel::geom_label_repel(
+          aes(label = label, geometry = geometry), stat = "sf_coordinates"
+        ) +
+        scale_fill_gradientn(
+          limits = c(log(1), log(126)),
+          colors = c("#006837", "#a6d96a","#fee08b", "#f46d43", "#d73027", "#c51b7d", "#762a83", "#40004b"),
+          breaks = c(log(1), log(2), log(3), log(6), log(11), log(26), log(51), log(101)),
+          labels = c(0, 1, 2, 5, 10, 25, 50, 100)
+        ) +
+        theme_void() +
+        theme(legend.title = element_blank())
+  
+      p
+    },
+    cacheKeyExpr = {list(input$date, input$mean_type, cached_get_data())}
+  )
   
   output$judet_plot <- renderPlot({
     cases <- dataset()
