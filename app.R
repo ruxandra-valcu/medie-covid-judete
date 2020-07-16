@@ -200,10 +200,10 @@ server <- function(input, output, session) {
           aes(label = label, geometry = geometry), stat = "sf_coordinates"
         ) +
         scale_fill_gradientn(
-          limits = c(log(1), log(126)),
-          colors = c("#006837", "#a6d96a","#fee08b", "#f46d43", "#d73027", "#c51b7d", "#762a83", "#40004b"),
-          breaks = c(log(1), log(2), log(3), log(6), log(11), log(26), log(51), log(101)),
-          labels = c(0, 1, 2, 5, 10, 25, 50, 100)
+          limits = c(log(1), log(251)),
+          colors = c("#006837", "#a6d96a","#fee08b", "#f46d43", "#d73027", "#c51b7d", "#762a83", "#40004b", "#000000"),
+          breaks = c(log(1), log(2), log(3), log(6), log(11), log(26), log(51), log(101), log(251)),
+          labels = c(0, 1, 2, 5, 10, 25, 50, 100, 250)
         ) +
         theme_void() +
         theme(legend.title = element_blank())
